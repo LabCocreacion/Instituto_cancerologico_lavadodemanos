@@ -106,10 +106,17 @@ Los parámetros principales están al inicio de `app.py`:
 
 | Parámetro               | Valor por defecto | Descripción                                               |
 |-------------------------|-------------------|-----------------------------------------------------------|
-| `weights_path`          | `weights.pt`      | Ruta a los pesos del modelo                               |
+| `WEIGHTS_PATH`          | `weights.pt`      | Ruta a los pesos del modelo                               |
+| `INPUT_SIZE`            | `640`             | Tamaño (estirado) de la imagen que recibe el modelo       |
 | `CONFIDENCE_THRESHOLD`  | `0.6`             | Confianza mínima para aceptar una detección               |
 | `DETECTION_HISTORY_SIZE`| `5`               | Número de cuadros usados para suavizar la predicción      |
 | `CLASS_NAMES`           | `Paso 1` … `Paso 6` | Nombres de las clases que se muestran en la interfaz    |
+
+El modo debug de Flask está desactivado por defecto, porque expone el depurador de Werkzeug a cualquiera que tenga acceso al servidor. Para activarlo durante el desarrollo:
+
+```powershell
+$env:FLASK_DEBUG = "1"; python app.py
+```
 
 ## Modelo
 

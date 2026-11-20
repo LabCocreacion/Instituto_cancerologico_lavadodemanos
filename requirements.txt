@@ -5,7 +5,5 @@ Flask-SocketIO>=5.3,<6
 # Inferencia (los pesos se guardaron con ultralytics 8.2.0)
 ultralytics>=8.2,<9
 torch>=2.2
-torchvision>=0.17
 opencv-python>=4.9
 numpy>=1.26,<3
-Pillow>=10.0
