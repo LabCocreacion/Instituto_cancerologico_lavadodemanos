@@ -18,6 +18,7 @@ https://github.com/user-attachments/assets/9d6c0db9-fd37-438b-b22e-68a6f4005ff8
 - [Uso](#uso)
 - [Configuración](#configuración)
 - [Pruebas](#pruebas)
+- [Ejecutable para Ubuntu](#ejecutable-para-ubuntu)
 - [Modelo](#modelo)
 - [Licencia](#licencia)
 - [Referencias](#referencias)
@@ -51,6 +52,7 @@ Navegador (React)  ──frame base64──▶  Flask + Socket.IO  ──▶  YO
 │   └── demo_webcam.py   # Demo local con la webcam (OpenCV), sin interfaz web
 ├── tests/
 │   └── test_detector.py # Pruebas automáticas (no requieren cámara)
+├── packaging/linux/     # Generación del ejecutable para Ubuntu (ver "Ejecutable para Ubuntu")
 ├── templates/
 │   └── index.html       # Página principal
 ├── static/
@@ -138,6 +140,72 @@ Las pruebas cubren la detección (ajuste de las cajas al tamaño del cuadro) y e
 pip install -r requirements-dev.txt
 pytest
 ```
+
+## Ejecutable para Ubuntu
+
+Se puede generar un paquete autónomo para usar la aplicación en un equipo con Ubuntu (por ejemplo, la NVIDIA Jetson Orin Nano del prototipo). El paquete se abre con doble clic y no necesita Python ni internet en el equipo donde se instala.
+
+El ejecutable **se genera en el mismo tipo de equipo donde se va a usar**: misma versión de Ubuntu y misma arquitectura (ARM64 para la Jetson, x86_64 para un PC). Lo más simple es generarlo directamente en el dispositivo.
+
+### 1. Preparar el equipo (una sola vez)
+
+Se necesita internet durante la generación. En una terminal:
+
+```bash
+sudo apt update
+sudo apt install -y git python3 python3-venv python3-dev binutils
+git clone https://github.com/LabCocreacion/Instituto_cancerologico_lavadodemanos.git
+cd Instituto_cancerologico_lavadodemanos
+```
+
+### 2. Generar el ejecutable
+
+Elija **una** de las dos opciones.
+
+**Opción A: ejecutable para CPU.** Funciona en cualquier equipo con Ubuntu.
+
+```bash
+bash packaging/linux/build.sh
+```
+
+**Opción B: ejecutable que usa la GPU de una Jetson.** Más rápido, pero solo funciona en Jetson con la misma versión de JetPack.
+
+1. Cree el entorno de compilación:
+   ```bash
+   python3 -m venv .venv-build
+   ```
+2. Instale en ese entorno el **PyTorch y el torchvision de NVIDIA** que corresponden a la versión de JetPack del equipo. Siga la [guía de NVIDIA](https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html) o la [guía de Ultralytics para Jetson](https://docs.ultralytics.com/guides/nvidia-jetson/), usando `.venv-build/bin/pip` en lugar de `pip`. Para ver la versión de JetPack: `cat /etc/nv_tegra_release`.
+3. Compruebe que PyTorch ve la GPU (debe imprimir `True`):
+   ```bash
+   .venv-build/bin/python -c "import torch; print(torch.cuda.is_available())"
+   ```
+4. Genere el ejecutable. El script detecta el PyTorch ya instalado y no lo reemplaza:
+   ```bash
+   bash packaging/linux/build.sh
+   ```
+
+En ambos casos el script tarda varios minutos y, al final, muestra la ruta del paquete:
+
+```
+dist/LavadoManos-<arquitectura>-<cpu|gpu>.tar.gz
+```
+
+Por ejemplo, `dist/LavadoManos-aarch64-gpu.tar.gz`. El nombre indica si el ejecutable quedó usando la GPU o la CPU.
+
+> La primera vez se descargan PyTorch y las demás dependencias (varios cientos de MB). Las siguientes veces se reutiliza el entorno `.venv-build`. Las carpetas `.venv-build/`, `build/` y `dist/` no se suben al repositorio.
+
+### 3. Instalar y usar
+
+En el equipo donde se generó, o en otro igual al que se le copie el `.tar.gz`:
+
+1. Descomprima el paquete (clic derecho → *Extraer aquí*) o, en una terminal: `tar -xzf dist/LavadoManos-*.tar.gz -C ~`.
+2. En la carpeta `LavadoManos`, clic derecho sobre `instalar.sh` → **Ejecutar como un programa**. Esto se hace una sola vez y no pide contraseña.
+3. Doble clic en el ícono **Lavado de Manos** del escritorio, o búsquelo en el menú de aplicaciones. Se abre una terminal con los mensajes de la aplicación y, unos segundos después, el navegador en `http://localhost:5000`.
+4. Permita el acceso a la cámara. Para cerrar la aplicación, cierre la terminal.
+
+Si el ícono del escritorio no abre, haga clic derecho sobre él → **Permitir ejecutar**. Para desinstalar, ejecute `desinstalar.sh` de la misma forma. Estas instrucciones también vienen en el archivo `LEEME.txt` del paquete.
+
+> En el ejecutable, el servidor solo escucha en el propio equipo (`HOST=127.0.0.1`). La terminal muestra el tiempo de inferencia de cada cuadro, lo que sirve para comparar el rendimiento de la versión CPU y la GPU.
 
 ## Modelo
 
