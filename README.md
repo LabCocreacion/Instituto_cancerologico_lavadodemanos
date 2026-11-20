@@ -17,6 +17,7 @@ https://github.com/user-attachments/assets/9d6c0db9-fd37-438b-b22e-68a6f4005ff8
 - [Instalación](#instalación)
 - [Uso](#uso)
 - [Configuración](#configuración)
+- [Pruebas](#pruebas)
 - [Modelo](#modelo)
 - [Licencia](#licencia)
 - [Referencias](#referencias)
@@ -32,18 +33,24 @@ Navegador (React)  ──frame base64──▶  Flask + Socket.IO  ──▶  YO
 ```
 
 1. La interfaz web (`templates/index.html` + `static/js/app.js`) captura la cámara y envía cuadros al servidor por **WebSocket** (evento `video_frame`).
-2. El servidor (`app.py`) ejecuta el modelo sobre cada cuadro.
-3. Para evitar saltos entre predicciones, se suaviza el resultado con el historial de las últimas 5 detecciones y se descartan las que tengan confianza menor a 0.6.
+2. El servidor (`app.py`) le pasa cada cuadro al detector (`detector.py`), que ejecuta el modelo.
+3. Para evitar saltos entre predicciones, se suaviza el resultado con el historial de las últimas 5 detecciones y se descartan las que tengan confianza menor a 0.6. Cada navegador conectado tiene su propio historial.
 4. El servidor responde (evento `prediction_result`) con el paso detectado, la confianza, la imagen anotada y las cajas delimitadoras; la interfaz va marcando el progreso de los 6 pasos.
 
 ## Estructura del proyecto
 
 ```
 .
-├── app.py               # Servidor Flask + Socket.IO e inferencia en tiempo real
-├── test_modelo.py       # Script local para probar el modelo con la webcam (OpenCV)
+├── app.py               # Servidor Flask + Socket.IO (recibe cuadros y responde el paso)
+├── detector.py          # Modelo: carga, detección, dibujo de cajas y suavizado
+├── config.py            # Parámetros (modificables con variables de entorno)
 ├── weights.pt           # Pesos del modelo YOLOv8 entrenado
 ├── requirements.txt     # Dependencias de Python
+├── requirements-dev.txt # Dependencias para desarrollo (pytest)
+├── scripts/
+│   └── demo_webcam.py   # Demo local con la webcam (OpenCV), sin interfaz web
+├── tests/
+│   └── test_detector.py # Pruebas automáticas (no requieren cámara)
 ├── templates/
 │   └── index.html       # Página principal
 ├── static/
@@ -92,30 +99,44 @@ Abrir [http://localhost:5000](http://localhost:5000) en el navegador y permitir 
 
 > Los navegadores solo permiten usar la cámara en `localhost` o bajo HTTPS. Para acceder desde otro equipo de la red se necesita servir la aplicación con HTTPS.
 
-### Prueba local con la webcam (sin interfaz web)
+### Demo local con la webcam (sin interfaz web)
 
 ```bash
-python test_modelo.py
+python scripts/demo_webcam.py
 ```
 
 Abre una ventana de OpenCV con las detecciones sobre la imagen de la cámara. Presionar `q` para salir.
 
 ## Configuración
 
-Los parámetros principales están al inicio de `app.py`:
+Los parámetros están en `config.py`. Todos, salvo `CLASS_NAMES`, se pueden cambiar con una variable de entorno del mismo nombre, sin editar el código:
 
-| Parámetro               | Valor por defecto | Descripción                                               |
-|-------------------------|-------------------|-----------------------------------------------------------|
-| `WEIGHTS_PATH`          | `weights.pt`      | Ruta a los pesos del modelo                               |
-| `INPUT_SIZE`            | `640`             | Tamaño (estirado) de la imagen que recibe el modelo       |
-| `CONFIDENCE_THRESHOLD`  | `0.6`             | Confianza mínima para aceptar una detección               |
-| `DETECTION_HISTORY_SIZE`| `5`               | Número de cuadros usados para suavizar la predicción      |
-| `CLASS_NAMES`           | `Paso 1` … `Paso 6` | Nombres de las clases que se muestran en la interfaz    |
+| Variable                 | Valor por defecto | Descripción                                               |
+|--------------------------|-------------------|-----------------------------------------------------------|
+| `WEIGHTS_PATH`           | `weights.pt`      | Ruta a los pesos del modelo                               |
+| `INPUT_SIZE`             | `640`             | Tamaño (estirado) de la imagen que recibe el modelo       |
+| `CONFIDENCE_THRESHOLD`   | `0.6`             | Confianza mínima para aceptar una detección               |
+| `DETECTION_HISTORY_SIZE` | `5`               | Número de cuadros usados para suavizar la predicción      |
+| `HOST`                   | `0.0.0.0`         | Dirección en la que escucha el servidor                   |
+| `PORT`                   | `5000`            | Puerto del servidor                                       |
+| `FLASK_DEBUG`            | `0`               | `1` activa el modo debug de Flask                         |
+| `CLASS_NAMES`            | `Paso 1` … `Paso 6` | Nombres de las clases que se muestran en la interfaz (solo en `config.py`) |
 
-El modo debug de Flask está desactivado por defecto, porque expone el depurador de Werkzeug a cualquiera que tenga acceso al servidor. Para activarlo durante el desarrollo:
+Ejemplo (PowerShell):
 
 ```powershell
-$env:FLASK_DEBUG = "1"; python app.py
+$env:CONFIDENCE_THRESHOLD = "0.7"; $env:PORT = "8000"; python app.py
+```
+
+El modo debug de Flask está desactivado por defecto, porque expone el depurador de Werkzeug a cualquiera que tenga acceso al servidor. Actívalo solo durante el desarrollo, con `$env:FLASK_DEBUG = "1"`.
+
+## Pruebas
+
+Las pruebas cubren la detección (ajuste de las cajas al tamaño del cuadro) y el suavizado del paso detectado. Usan un modelo simulado, así que no requieren cámara y tardan menos de un segundo.
+
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
 
 ## Modelo
