@@ -1,11 +1,11 @@
-# Detección de Lavado de Manos con YOLOv11
+# Detección de Lavado de Manos con YOLOv8
 
 Aplicación web que verifica en tiempo real, desde la cámara del navegador, que una persona realice los **6 pasos del protocolo de lavado de manos**. Fue desarrollada para el **Instituto Nacional de Cancerología** como apoyo al control de acceso a la UCI y al cumplimiento de los protocolos sanitarios para el cuidado de los pacientes.
 
 https://github.com/user-attachments/assets/9d6c0db9-fd37-438b-b22e-68a6f4005ff8
 
 - 📄 Informe completo del proceso: [INC1.pdf](./INC1.pdf)
-- 🧠 Detalles de la arquitectura YOLOv11: [artículo en Medium](https://medium.com/@nikhil-rao-20/yolov11-explained-next-level-object-detection-with-enhanced-speed-and-accuracy-2dbe2d376f71)
+- 🧠 Detalles de la arquitectura YOLOv8: [documentación de Ultralytics](https://docs.ultralytics.com/models/yolov8/)
 
 ---
 
@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/9d6c0db9-fd37-438b-b22e-68a6f4005ff8
 ## Cómo funciona
 
 ```
-Navegador (React)  ──frame base64──▶  Flask + Socket.IO  ──▶  YOLOv11 (weights.pt)
+Navegador (React)  ──frame base64──▶  Flask + Socket.IO  ──▶  YOLOv8 (weights.pt)
        ▲                                                              │
        └──────────── paso detectado + confianza + cajas ◀─────────────┘
 ```
@@ -42,7 +42,7 @@ Navegador (React)  ──frame base64──▶  Flask + Socket.IO  ──▶  YO
 .
 ├── app.py               # Servidor Flask + Socket.IO e inferencia en tiempo real
 ├── test_modelo.py       # Script local para probar el modelo con la webcam (OpenCV)
-├── weights.pt           # Pesos del modelo YOLOv11 entrenado
+├── weights.pt           # Pesos del modelo YOLOv8 entrenado
 ├── requirements.txt     # Dependencias de Python
 ├── templates/
 │   └── index.html       # Página principal
@@ -120,17 +120,20 @@ $env:FLASK_DEBUG = "1"; python app.py
 
 ## Modelo
 
-El modelo se entrenó con la arquitectura **YOLOv11** en **Roboflow 3.0** (PyTorch). Los pesos están en `weights.pt` en la raíz del repositorio.
+El modelo es un detector con arquitectura **YOLOv8** de tamaño *nano* (~3.0 millones de parámetros), entrenado en **Roboflow** con PyTorch durante 300 épocas, a 640 px y sin pesos preentrenados. Los pesos están en `weights.pt` en la raíz del repositorio.
+
+> **Nota sobre la arquitectura:** el informe `INC1.pdf` menciona YOLO V11, pero el modelo de `weights.pt` corresponde a YOLOv8. Tiene los bloques `C2f`/`SPPF` de YOLOv8 y no los `C3k2`/`C2PSA` propios de YOLO11, y fue guardado con ultralytics 8.2.0, versión anterior a YOLO11. Pasar a YOLO11 requiere volver a entrenar con el mismo conjunto de datos.
 
 ### Métricas
 
+Valores del conjunto de validación, guardados en `weights.pt`:
+
 | Métrica   | Valor  |
 |-----------|--------|
-| mAP       | 99.3 % |
 | Precisión | 99.0 % |
 | Recall    | 99.5 % |
-| mAP50     | ~99.5 % |
-| mAP50-95  | ~78 %  |
+| mAP50     | 99.3 % |
+| mAP50-95  | 79.1 % |
 
 ![Métricas del modelo](imagenes/graficas_entrenamiento.png)
 
