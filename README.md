@@ -143,7 +143,7 @@ pytest
 
 ## Ejecutable para Ubuntu
 
-Se puede generar un paquete autónomo para usar la aplicación en un equipo con Ubuntu (por ejemplo, la NVIDIA Jetson Orin Nano del prototipo). El paquete se abre con doble clic y no necesita Python ni internet en el equipo donde se instala.
+Se puede generar un paquete autónomo para usar la aplicación en un equipo con Ubuntu 22.04 o 24.04 (por ejemplo, la NVIDIA Jetson Orin Nano del prototipo, con JetPack 6). El paquete se abre con doble clic y no necesita Python ni internet en el equipo donde se instala.
 
 El ejecutable **se genera en el mismo tipo de equipo donde se va a usar**: misma versión de Ubuntu y misma arquitectura (ARM64 para la Jetson, x86_64 para un PC). Lo más simple es generarlo directamente en el dispositivo.
 
@@ -174,7 +174,21 @@ bash packaging/linux/build.sh
    ```bash
    python3 -m venv .venv-build
    ```
-2. Instale en ese entorno el **PyTorch y el torchvision de NVIDIA** que corresponden a la versión de JetPack del equipo. Siga la [guía de NVIDIA](https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html) o la [guía de Ultralytics para Jetson](https://docs.ultralytics.com/guides/nvidia-jetson/), usando `.venv-build/bin/pip` en lugar de `pip`. Para ver la versión de JetPack: `cat /etc/nv_tegra_release`.
+2. Instale en ese entorno el **PyTorch y el torchvision de NVIDIA** que corresponden a la versión de JetPack del equipo. Siga la [guía de NVIDIA](https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html) o la [guía de Ultralytics para Jetson](https://docs.ultralytics.com/guides/nvidia-jetson/), usando `.venv-build/bin/pip` en lugar de `pip`.
+
+   Para identificar la versión de JetPack:
+
+   ```bash
+   cat /etc/nv_tegra_release      # "R36" = JetPack 6, "R35" = JetPack 5
+   lsb_release -d; python3 --version
+   ```
+
+   | `nv_tegra_release` | JetPack | Ubuntu / Python oficiales | CUDA |
+   |--------------------|---------|---------------------------|------|
+   | R36.x              | 6.x     | 22.04 / Python 3.10       | 12.x |
+   | R35.x              | 5.x     | 20.04 / Python 3.8        | 11.4 |
+
+   El prototipo del proyecto (Jetson Orin Nano) tiene **R36.4.7, es decir JetPack 6 con CUDA 12.6, Ubuntu 22.04.5 y Python 3.10.12**, así que se usan los paquetes de PyTorch para JetPack 6 de esas guías. Esos paquetes están compilados para el Python oficial del JetPack (3.10 en JetPack 6). Si el equipo tiene otra versión de Python, no se podrán instalar y habrá que usar la opción A.
 3. Compruebe que PyTorch ve la GPU (debe imprimir `True`):
    ```bash
    .venv-build/bin/python -c "import torch; print(torch.cuda.is_available())"
