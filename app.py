@@ -274,4 +274,6 @@ def handle_video_frame(data):
         emit('prediction_result', {'step': -1, 'step_name': 'Error', 'confidence': 0})
  
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    # allow_unsafe_werkzeug: Flask-SocketIO >= 5.3 se niega a usar el servidor de
+    # desarrollo de Werkzeug si no se ejecuta desde una terminal interactiva.
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
