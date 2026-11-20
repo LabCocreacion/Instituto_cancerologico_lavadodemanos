@@ -174,9 +174,7 @@ bash packaging/linux/build.sh
    ```bash
    python3 -m venv .venv-build
    ```
-2. Instale en ese entorno el **PyTorch y el torchvision de NVIDIA** que corresponden a la versión de JetPack del equipo. Siga la [guía de NVIDIA](https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html) o la [guía de Ultralytics para Jetson](https://docs.ultralytics.com/guides/nvidia-jetson/), usando `.venv-build/bin/pip` en lugar de `pip`.
-
-   Para identificar la versión de JetPack:
+2. Identifique la versión de JetPack del equipo:
 
    ```bash
    cat /etc/nv_tegra_release      # "R36" = JetPack 6, "R35" = JetPack 5
@@ -188,12 +186,26 @@ bash packaging/linux/build.sh
    | R36.x              | 6.x     | 22.04 / Python 3.10       | 12.x |
    | R35.x              | 5.x     | 20.04 / Python 3.8        | 11.4 |
 
-   El prototipo del proyecto (Jetson Orin Nano) tiene **R36.4.7, es decir JetPack 6 con CUDA 12.6, Ubuntu 22.04.5 y Python 3.10.12**, así que se usan los paquetes de PyTorch para JetPack 6 de esas guías. Esos paquetes están compilados para el Python oficial del JetPack (3.10 en JetPack 6). Si el equipo tiene otra versión de Python, no se podrán instalar y habrá que usar la opción A.
-3. Compruebe que PyTorch ve la GPU (debe imprimir `True`):
+   El prototipo del proyecto (Jetson Orin Nano) tiene **R36.4.7, es decir JetPack 6 con CUDA 12.6, Ubuntu 22.04.5 y Python 3.10.12**. Los pasos 3 a 6 son los comandos para **JetPack 6**. Para otra versión de JetPack, use los paquetes que indican la [guía de Ultralytics para Jetson](https://docs.ultralytics.com/guides/nvidia-jetson/) o la [guía de NVIDIA](https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html), con `.venv-build/bin/pip` en lugar de `pip`. Esos paquetes están compilados para el Python oficial del JetPack (3.10 en JetPack 6): si el equipo tiene otra versión de Python no se podrán instalar y habrá que usar la opción A.
+
+
+3. Instale la librería cuSPARSELt de NVIDIA, que necesita el PyTorch para JetPack 6:
+   ```bash
+   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/arm64/cuda-keyring_1.1-1_all.deb
+   sudo dpkg -i cuda-keyring_1.1-1_all.deb && sudo apt-get update
+   sudo apt-get install -y libcusparselt0 libcusparselt-dev
+   ```
+4. Instale PyTorch y torchvision compilados por NVIDIA para JetPack 6 (Python 3.10, CUDA 12.6), los mismos que recomienda la guía de Ultralytics. Luego fije numpy 1.x y una versión de OpenCV compatible, porque este PyTorch puede fallar con numpy 2:
+   ```bash
+   .venv-build/bin/pip install https://github.com/ultralytics/assets/releases/download/v0.0.0/torch-2.5.0a0+872d972e41.nv24.08-cp310-cp310-linux_aarch64.whl
+   .venv-build/bin/pip install https://github.com/ultralytics/assets/releases/download/v0.0.0/torchvision-0.20.0a0+afc54f7-cp310-cp310-linux_aarch64.whl
+   .venv-build/bin/pip install "numpy>=1.26,<2" "opencv-python>=4.9,<4.12"
+   ```
+5. Compruebe que PyTorch ve la GPU (debe imprimir `True`):
    ```bash
    .venv-build/bin/python -c "import torch; print(torch.cuda.is_available())"
    ```
-4. Genere el ejecutable. El script detecta el PyTorch ya instalado y no lo reemplaza:
+6. Genere el ejecutable. El script detecta el PyTorch ya instalado y no lo reemplaza; al empezar debe mostrar *"Se usará el PyTorch ya instalado"* y *"PyTorch detecta la GPU"*:
    ```bash
    bash packaging/linux/build.sh
    ```
