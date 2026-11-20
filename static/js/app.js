@@ -2,7 +2,6 @@
 const { useState, useEffect, useRef } = React;
  
 // Hand washing step images
-// Note: You'll need to place these images in your static/images folder
 const stepImages = [
     '/static/images/step1.png', // Wet hands
     '/static/images/step2.png', // Apply soap
@@ -47,8 +46,8 @@ const HandWashingApp = () => {
         });
        
         socketRef.current.on('prediction_result', (data) => {
+            // isCorrectStep se recalcula en el efecto que depende de detectedStep
             setDetectedStep(data.step);
-            setIsCorrectStep(data.step === currentStep);
            
             // Handle processed image with bounding boxes
             if (data.image) {
@@ -58,7 +57,6 @@ const HandWashingApp = () => {
             // Store bounding boxes data
             if (data.bounding_boxes) {
                 setBoundingBoxes(data.bounding_boxes);
-                console.log('Bounding boxes:', data.bounding_boxes);
             }
         });
        
@@ -78,7 +76,6 @@ const HandWashingApp = () => {
         };
     }, []);
    
-    // Handle step progression based on detected steps
     // Handle step progression based on detected steps
     useEffect(() => {
         if (completed) return;
@@ -324,9 +321,6 @@ const HandWashingApp = () => {
                             {streamActive && !isCorrectStep && detectedStep !== -1 && (
                                 <div className="absolute inset-0 bg-red-500 bg-opacity-30 flex items-center justify-center">
                                     <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-                                        <div className="text-red-600 text-5xl mb-2">
-                                            <i className="fas fa-exclamation-circle"></i>
-                                        </div>
                                         <h2 className="text-2xl font-bold text-red-600 mb-2">
                                             ¡Paso incorrecto!
                                         </h2>

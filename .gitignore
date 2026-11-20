@@ -1,3 +1,57 @@
+# --- Entornos virtuales ---
 myenv/
-
 venv/
+.venv/
+env/
+ENV/
+.python-version
+.conda/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# --- Pruebas y cobertura ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Variables de entorno / secretos ---
+.env
+.env.*
+!.env.example
+
+# --- IDEs y editores ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs ---
+*.log
+
+# --- Salidas generadas por el modelo / Ultralytics ---
+runs/
+output*.mp4
+output*.avi
+# Pesos descargados automáticamente por Ultralytics (el modelo propio es weights.pt)
+yolo*.pt

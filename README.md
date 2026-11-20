@@ -1,105 +1,199 @@
-# Modelo de Detección de Lavado de Manos (YOLOv11)
+# Detección de Lavado de Manos con YOLOv8
 
-**Detalles sobre la arquitectura de Yolo V11 en detalle [aquí](https://medium.com/@nikhil-rao-20/yolov11-explained-next-level-object-detection-with-enhanced-speed-and-accuracy-2dbe2d376f71)** 
-
-**Informe del proceso completo [aquí](./INC1.pdf)**
-
+Aplicación web que verifica en tiempo real, desde la cámara del navegador, que una persona realice los **6 pasos del protocolo de lavado de manos**. Fue desarrollada para el **Instituto Nacional de Cancerología** como apoyo al control de acceso a la UCI y al cumplimiento de los protocolos sanitarios para el cuidado de los pacientes.
 
 https://github.com/user-attachments/assets/9d6c0db9-fd37-438b-b22e-68a6f4005ff8
 
-## Descripción General
+- 📄 Informe completo del proceso: [INC1.pdf](./INC1.pdf)
+- 🧠 Detalles de la arquitectura YOLOv8: [documentación de Ultralytics](https://docs.ultralytics.com/models/yolov8/)
 
-Este repositorio contiene un modelo de detección de lavado de manos entrenado con la arquitectura YOLOv11 en Roboflow 3.0. El modelo está diseñado para detectar técnicas adecuadas de lavado de manos, necesario para tener accesos a la UCI y cumplir con lso protocolos sanitarios y cuidar de los pacientes. 
+---
 
-El modelo logra métricas de rendimiento excepcionales:
-- mAP: 99.3%
-- Precisión: 99.0%
-- Recall: 99.5%
+## Contenido
 
-![Métricas del modelo](imagenes/graficas_entrenamiento.png)
+- [Cómo funciona](#cómo-funciona)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Requisitos](#requisitos)
+- [Instalación](#instalación)
+- [Uso](#uso)
+- [Configuración](#configuración)
+- [Pruebas](#pruebas)
+- [Modelo](#modelo)
+- [Licencia](#licencia)
+- [Referencias](#referencias)
 
-## Conjunto de Datos
+---
 
-El conjunto de datos consiste en imágenes de lavado de manos con las siguientes características:
+## Cómo funciona
 
-- **Total de Imágenes**: 7,788
-- **Tamaño del Conjunto Original**: 2,975 imágenes
-- **División de Datos**: 80% Entrenamiento, 10% Prueba, 10% Validación
+```
+Navegador (React)  ──frame base64──▶  Flask + Socket.IO  ──▶  YOLOv8 (weights.pt)
+       ▲                                                              │
+       └──────────── paso detectado + confianza + cajas ◀─────────────┘
+```
 
-### Pasos de Preprocesamiento
+1. La interfaz web (`templates/index.html` + `static/js/app.js`) captura la cámara y envía cuadros al servidor por **WebSocket** (evento `video_frame`).
+2. El servidor (`app.py`) le pasa cada cuadro al detector (`detector.py`), que ejecuta el modelo.
+3. Para evitar saltos entre predicciones, se suaviza el resultado con el historial de las últimas 5 detecciones y se descartan las que tengan confianza menor a 0.6. Cada navegador conectado tiene su propio historial.
+4. El servidor responde (evento `prediction_result`) con el paso detectado, la confianza, la imagen anotada y las cajas delimitadoras; la interfaz va marcando el progreso de los 6 pasos.
 
-Se aplicaron las siguientes técnicas de preprocesamiento para mejorar el rendimiento del modelo:
+## Estructura del proyecto
 
-- **Auto-Orientación**: Aplicada para garantizar una orientación de imagen consistente
-- **Redimensionamiento**: Estirado a 640x640 píxeles para dimensiones de entrada uniformes
-- **Conversión a Escala de Grises**: Aplicada para reducir la varianza de color y enfocarse en características de forma
+```
+.
+├── app.py               # Servidor Flask + Socket.IO (recibe cuadros y responde el paso)
+├── detector.py          # Modelo: carga, detección, dibujo de cajas y suavizado
+├── config.py            # Parámetros (modificables con variables de entorno)
+├── weights.pt           # Pesos del modelo YOLOv8 entrenado
+├── requirements.txt     # Dependencias de Python
+├── requirements-dev.txt # Dependencias para desarrollo (pytest)
+├── scripts/
+│   └── demo_webcam.py   # Demo local con la webcam (OpenCV), sin interfaz web
+├── tests/
+│   └── test_detector.py # Pruebas automáticas (no requieren cámara)
+├── templates/
+│   └── index.html       # Página principal
+├── static/
+│   ├── js/app.js        # Interfaz en React (captura de cámara y progreso)
+│   └── images/          # Ilustraciones de los pasos 1 a 6
+├── imagenes/            # Gráficas de entrenamiento usadas en este README
+└── INC1.pdf             # Informe técnico del proyecto
+```
 
-### Técnicas de Aumentación
+## Requisitos
 
-Para aumentar la diversidad del conjunto de datos y mejorar la robustez del modelo:
+- Python 3.10 o superior
+- Cámara web
+- Navegador moderno (Chrome, Edge o Firefox) con permiso de acceso a la cámara
+- *(Opcional)* GPU NVIDIA con CUDA: se usa automáticamente si está disponible; si no, la inferencia corre en CPU
 
-- **Salidas por ejemplo de entrenamiento**: 3
-- **Rotación**: Rotación aleatoria entre -8° y +8°
-- **Exposición**: Ajustes aleatorios de exposición entre -8% y +8%
-
-## Arquitectura del Modelo
-
-El modelo utiliza YOLOv11 (You Only Look Once), una arquitectura de detección de objetos de última generación conocida por su velocidad y precisión. La implementación de Roboflow utiliza PyTorch como base para el entrenamiento e inferencia del modelo.
-
-## Proceso de Entrenamiento
-
-Los gráficos de entrenamiento muestran un patrón de convergencia estable:
-
-![Gráficos de entrenamiento](imagenes/graficas_funcion_error.png)
-
-- **Box Loss**: Comenzó en ~2.2 y se estabilizó alrededor de 0.8
-- **Class Loss**: Comenzó en ~3.0 y se estabilizó alrededor de 0.2
-- **DFL Loss**: Comenzó en ~1.8 y se estabilizó alrededor de 1.2-1.3
-
-La métrica mAP muestra una mejora rápida en las primeras épocas, alcanzando más del 90% en la época 20, y continuando mejorando gradualmente hasta 99.3% al final del entrenamiento.
-
-## Rendimiento del Modelo
-
-El modelo demuestra un excelente rendimiento en todas las métricas clave:
-
-- **mAP**: 99.3% (Precisión Media Promedio)
-- **Precisión**: 99.0% (Exactitud de predicciones positivas)
-- **Recall**: 99.5% (Capacidad para encontrar todas las instancias positivas)
-- **mAP50**: ~99.5% (mAP con umbral IoU de 0.5)
-- **mAP50-95**: ~78% (mAP promedio a través de umbrales IoU de 0.5 a 0.95)
-
-## Uso
-
-### Instalación
+## Instalación
 
 ```bash
-# Clonar el repositorio
-git clone https://github.com/tu-usuario/deteccion-lavado-manos.git
-cd deteccion-lavado-manos
+# 1. Clonar el repositorio
+git clone https://github.com/LabCocreacion/Instituto_cancerologico_lavadodemanos.git
+cd Instituto_cancerologico_lavadodemanos
 
-# Instalar dependencias
+# 2. Crear y activar un entorno virtual
+python -m venv .venv
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+# Linux / macOS
+source .venv/bin/activate
+
+# 3. Instalar dependencias
 pip install -r requirements.txt
 ```
 
-### Inferencia
+> El entorno virtual no se versiona (está en `.gitignore`); cada persona debe crear el suyo.
 
-```python
-# Ejecutar:
+## Uso
 
-python app.py 
+### Aplicación web
+
+```bash
+python app.py
 ```
 
-## Pesos del Modelo
+Abrir [http://localhost:5000](http://localhost:5000) en el navegador y permitir el acceso a la cámara. El servidor escucha en `0.0.0.0:5000`, así que también es accesible desde otros equipos de la misma red (`http://<ip-del-equipo>:5000`).
 
-Los pesos del modelo entrenado están disponibles en el directorio `weights`:
-- `weights.pt`
+> Los navegadores solo permiten usar la cámara en `localhost` o bajo HTTPS. Para acceder desde otro equipo de la red se necesita servir la aplicación con HTTPS.
+
+### Demo local con la webcam (sin interfaz web)
+
+```bash
+python scripts/demo_webcam.py
+```
+
+Abre una ventana de OpenCV con las detecciones sobre la imagen de la cámara. Presionar `q` para salir.
+
+## Configuración
+
+Los parámetros están en `config.py`. Todos, salvo `CLASS_NAMES`, se pueden cambiar con una variable de entorno del mismo nombre, sin editar el código:
+
+| Variable                 | Valor por defecto | Descripción                                               |
+|--------------------------|-------------------|-----------------------------------------------------------|
+| `WEIGHTS_PATH`           | `weights.pt`      | Ruta a los pesos del modelo                               |
+| `INPUT_SIZE`             | `640`             | Tamaño (estirado) de la imagen que recibe el modelo       |
+| `CONFIDENCE_THRESHOLD`   | `0.6`             | Confianza mínima para aceptar una detección               |
+| `DETECTION_HISTORY_SIZE` | `5`               | Número de cuadros usados para suavizar la predicción      |
+| `HOST`                   | `0.0.0.0`         | Dirección en la que escucha el servidor                   |
+| `PORT`                   | `5000`            | Puerto del servidor                                       |
+| `FLASK_DEBUG`            | `0`               | `1` activa el modo debug de Flask                         |
+| `CLASS_NAMES`            | `Paso 1` … `Paso 6` | Nombres de las clases que se muestran en la interfaz (solo en `config.py`) |
+
+Ejemplo (PowerShell):
+
+```powershell
+$env:CONFIDENCE_THRESHOLD = "0.7"; $env:PORT = "8000"; python app.py
+```
+
+El modo debug de Flask está desactivado por defecto, porque expone el depurador de Werkzeug a cualquiera que tenga acceso al servidor. Actívalo solo durante el desarrollo, con `$env:FLASK_DEBUG = "1"`.
+
+## Pruebas
+
+Las pruebas cubren la detección (ajuste de las cajas al tamaño del cuadro) y el suavizado del paso detectado. Usan un modelo simulado, así que no requieren cámara y tardan menos de un segundo.
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+## Modelo
+
+El modelo es un detector con arquitectura **YOLOv8** de tamaño *nano* (~3.0 millones de parámetros), entrenado en **Roboflow** con PyTorch durante 300 épocas, a 640 px y sin pesos preentrenados. Los pesos están en `weights.pt` en la raíz del repositorio.
+
+> **Nota sobre la arquitectura:** el informe `INC1.pdf` menciona YOLO V11, pero el modelo de `weights.pt` corresponde a YOLOv8. Tiene los bloques `C2f`/`SPPF` de YOLOv8 y no los `C3k2`/`C2PSA` propios de YOLO11, y fue guardado con ultralytics 8.2.0, versión anterior a YOLO11. Pasar a YOLO11 requiere volver a entrenar con el mismo conjunto de datos.
+
+### Métricas
+
+Valores del conjunto de validación, guardados en `weights.pt`:
+
+| Métrica   | Valor  |
+|-----------|--------|
+| Precisión | 99.0 % |
+| Recall    | 99.5 % |
+| mAP50     | 99.3 % |
+| mAP50-95  | 79.1 % |
+
+![Métricas del modelo](imagenes/graficas_entrenamiento.png)
+
+### Conjunto de datos
+
+- **Imágenes originales:** 2,975
+- **Imágenes tras aumentación:** 7,788
+- **División:** 80 % entrenamiento · 10 % validación · 10 % prueba
+
+**Preprocesamiento**
+
+- Auto-orientación
+- Redimensionamiento (estirado) a 640×640 px
+- Conversión a escala de grises, para reducir la variación de color y enfocarse en la forma
+
+**Aumentación** (3 salidas por ejemplo de entrenamiento)
+
+- Rotación aleatoria entre −8° y +8°
+- Exposición aleatoria entre −8 % y +8 %
+
+### Entrenamiento
+
+![Gráficas de la función de error](imagenes/graficas_funcion_error.png)
+
+| Pérdida    | Inicio | Final      |
+|------------|--------|------------|
+| Box Loss   | ~2.2   | ~0.8       |
+| Class Loss | ~3.0   | ~0.2       |
+| DFL Loss   | ~1.8   | ~1.2 – 1.3 |
+
+El mAP mejora rápidamente en las primeras épocas, supera el 90 % hacia la época 20 y sigue subiendo de forma gradual hasta llegar a 99.3 % al final del entrenamiento.
 
 ## Licencia
 
-Este software ha sido desarrollado por Tomás Barón, Samuel Ramirez, Giovanni Moreno y Santiago Toledo-Cortés, de la Facultad de Ingeniería de la Universidad de La Sabana y se otorga al Instituto Nacional de Cancerología un derecho de uso exclusivo. El software no puede ser redistribuido, modificado o utilizado por terceros sin el consentimiento expreso de los desarrolladores. Cualquier otra entidad interesada en el uso de esta tecnología debe contactar a Santiago Toledo-Cortés (santiagotoco@unisabana.edu.co).
+Este software fue desarrollado por Tomás Barón, Samuel Ramírez, Giovanni Moreno y Santiago Toledo-Cortés, de la Facultad de Ingeniería de la Universidad de La Sabana, y se otorga al Instituto Nacional de Cancerología un derecho de uso exclusivo. El software no puede ser redistribuido, modificado ni utilizado por terceros sin el consentimiento expreso de los desarrolladores. Cualquier otra entidad interesada en usar esta tecnología debe contactar a Santiago Toledo-Cortés (santiagotoco@unisabana.edu.co).
 
 ## Referencias
 
 - [Roboflow](https://roboflow.com/)
 - [Ultralytics](https://www.ultralytics.com/)
-- [Pytorch](https://pytorch.org/)
+- [PyTorch](https://pytorch.org/)
+- [Flask-SocketIO](https://flask-socketio.readthedocs.io/)
