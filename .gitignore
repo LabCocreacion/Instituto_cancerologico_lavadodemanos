@@ -2,6 +2,7 @@
 myenv/
 venv/
 .venv/
+.venv-build/
 env/
 ENV/
 .python-version
@@ -14,8 +15,10 @@ __pycache__/
 *.so
 *.egg-info/
 .eggs/
+# Salida del empaquetado (packaging/linux/build.sh)
 build/
 dist/
+*.spec
 pip-wheel-metadata/
 
 # --- Pruebas y cobertura ---

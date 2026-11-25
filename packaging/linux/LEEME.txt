@@ -1,0 +1,24 @@
+LAVADO DE MANOS - Instalación en Ubuntu
+=======================================
+
+No requiere internet ni contraseña de administrador.
+
+INSTALAR (una sola vez)
+  1. Clic derecho sobre "instalar.sh" -> "Ejecutar como un programa".
+     (Desde una terminal también funciona: ./instalar.sh)
+  2. Aparece un mensaje de "Instalación completa" y un ícono
+     "Lavado de Manos" en el escritorio.
+
+USAR
+  1. Doble clic en el ícono "Lavado de Manos" del escritorio
+     (o búsquelo en el menú de aplicaciones).
+  2. Se abre una ventana de terminal con los mensajes de la aplicación
+     y, unos segundos después, el navegador en http://localhost:5000
+  3. Permita el acceso a la cámara cuando el navegador lo pida.
+  4. Para cerrar la aplicación, cierre la ventana de terminal.
+
+  Si el ícono del escritorio no abre, haga clic derecho sobre él y
+  elija "Permitir ejecutar".
+
+DESINSTALAR
+  Clic derecho sobre "desinstalar.sh" -> "Ejecutar como un programa".

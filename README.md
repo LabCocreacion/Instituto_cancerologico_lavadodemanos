@@ -18,6 +18,7 @@ https://github.com/user-attachments/assets/9d6c0db9-fd37-438b-b22e-68a6f4005ff8
 - [Uso](#uso)
 - [Configuración](#configuración)
 - [Pruebas](#pruebas)
+- [Ejecutable para Ubuntu](#ejecutable-para-ubuntu)
 - [Modelo](#modelo)
 - [Licencia](#licencia)
 - [Referencias](#referencias)
@@ -51,6 +52,7 @@ Navegador (React)  ──frame base64──▶  Flask + Socket.IO  ──▶  YO
 │   └── demo_webcam.py   # Demo local con la webcam (OpenCV), sin interfaz web
 ├── tests/
 │   └── test_detector.py # Pruebas automáticas (no requieren cámara)
+├── packaging/linux/     # Generación del ejecutable para Ubuntu (ver "Ejecutable para Ubuntu")
 ├── templates/
 │   └── index.html       # Página principal
 ├── static/
@@ -138,6 +140,98 @@ Las pruebas cubren la detección (ajuste de las cajas al tamaño del cuadro) y e
 pip install -r requirements-dev.txt
 pytest
 ```
+
+## Ejecutable para Ubuntu
+
+Se puede generar un paquete autónomo para usar la aplicación en un equipo con Ubuntu 22.04 o 24.04 (por ejemplo, la NVIDIA Jetson Orin Nano del prototipo, con JetPack 6). El paquete se abre con doble clic y no necesita Python ni internet en el equipo donde se instala.
+
+El ejecutable **se genera en el mismo tipo de equipo donde se va a usar**: misma versión de Ubuntu y misma arquitectura (ARM64 para la Jetson, x86_64 para un PC). Lo más simple es generarlo directamente en el dispositivo.
+
+### 1. Preparar el equipo (una sola vez)
+
+Se necesita internet durante la generación. En una terminal:
+
+```bash
+sudo apt update
+sudo apt install -y git python3 python3-venv python3-dev binutils
+git clone https://github.com/LabCocreacion/Instituto_cancerologico_lavadodemanos.git
+cd Instituto_cancerologico_lavadodemanos
+```
+
+### 2. Generar el ejecutable
+
+Elija **una** de las dos opciones.
+
+**Opción A: ejecutable para CPU.** Funciona en cualquier equipo con Ubuntu.
+
+```bash
+bash packaging/linux/build.sh
+```
+
+**Opción B: ejecutable que usa la GPU de una Jetson.** Más rápido, pero solo funciona en Jetson con la misma versión de JetPack.
+
+1. Cree el entorno de compilación:
+   ```bash
+   python3 -m venv .venv-build
+   ```
+2. Identifique la versión de JetPack del equipo:
+
+   ```bash
+   cat /etc/nv_tegra_release      # "R36" = JetPack 6, "R35" = JetPack 5
+   lsb_release -d; python3 --version
+   ```
+
+   | `nv_tegra_release` | JetPack | Ubuntu / Python oficiales | CUDA |
+   |--------------------|---------|---------------------------|------|
+   | R36.x              | 6.x     | 22.04 / Python 3.10       | 12.x |
+   | R35.x              | 5.x     | 20.04 / Python 3.8        | 11.4 |
+
+   El prototipo del proyecto (Jetson Orin Nano) tiene **R36.4.7, es decir JetPack 6 con CUDA 12.6, Ubuntu 22.04.5 y Python 3.10.12**. Los pasos 3 a 6 son los comandos para **JetPack 6**. Para otra versión de JetPack, use los paquetes que indican la [guía de Ultralytics para Jetson](https://docs.ultralytics.com/guides/nvidia-jetson/) o la [guía de NVIDIA](https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html), con `.venv-build/bin/pip` en lugar de `pip`. Esos paquetes están compilados para el Python oficial del JetPack (3.10 en JetPack 6): si el equipo tiene otra versión de Python no se podrán instalar y habrá que usar la opción A.
+
+
+3. Instale la librería cuSPARSELt de NVIDIA, que necesita el PyTorch para JetPack 6:
+   ```bash
+   wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/arm64/cuda-keyring_1.1-1_all.deb
+   sudo dpkg -i cuda-keyring_1.1-1_all.deb && sudo apt-get update
+   sudo apt-get install -y libcusparselt0 libcusparselt-dev
+   ```
+4. Instale PyTorch y torchvision compilados por NVIDIA para JetPack 6 (Python 3.10, CUDA 12.6), los mismos que recomienda la guía de Ultralytics. Luego fije numpy 1.x y una versión de OpenCV compatible, porque este PyTorch puede fallar con numpy 2:
+   ```bash
+   .venv-build/bin/pip install https://github.com/ultralytics/assets/releases/download/v0.0.0/torch-2.5.0a0+872d972e41.nv24.08-cp310-cp310-linux_aarch64.whl
+   .venv-build/bin/pip install https://github.com/ultralytics/assets/releases/download/v0.0.0/torchvision-0.20.0a0+afc54f7-cp310-cp310-linux_aarch64.whl
+   .venv-build/bin/pip install "numpy>=1.26,<2" "opencv-python>=4.9,<4.12"
+   ```
+5. Compruebe que PyTorch ve la GPU (debe imprimir `True`):
+   ```bash
+   .venv-build/bin/python -c "import torch; print(torch.cuda.is_available())"
+   ```
+6. Genere el ejecutable. El script detecta el PyTorch ya instalado y no lo reemplaza; al empezar debe mostrar *"Se usará el PyTorch ya instalado"* y *"PyTorch detecta la GPU"*:
+   ```bash
+   bash packaging/linux/build.sh
+   ```
+
+En ambos casos el script tarda varios minutos y, al final, muestra la ruta del paquete:
+
+```
+dist/LavadoManos-<arquitectura>-<cpu|gpu>.tar.gz
+```
+
+Por ejemplo, `dist/LavadoManos-aarch64-gpu.tar.gz`. El nombre indica si el ejecutable quedó usando la GPU o la CPU.
+
+> La primera vez se descargan PyTorch y las demás dependencias (varios cientos de MB). Las siguientes veces se reutiliza el entorno `.venv-build`. Las carpetas `.venv-build/`, `build/` y `dist/` no se suben al repositorio.
+
+### 3. Instalar y usar
+
+En el equipo donde se generó, o en otro igual al que se le copie el `.tar.gz`:
+
+1. Descomprima el paquete (clic derecho → *Extraer aquí*) o, en una terminal: `tar -xzf dist/LavadoManos-*.tar.gz -C ~`.
+2. En la carpeta `LavadoManos`, clic derecho sobre `instalar.sh` → **Ejecutar como un programa**. Esto se hace una sola vez y no pide contraseña.
+3. Doble clic en el ícono **Lavado de Manos** del escritorio, o búsquelo en el menú de aplicaciones. Se abre una terminal con los mensajes de la aplicación y, unos segundos después, el navegador en `http://localhost:5000`.
+4. Permita el acceso a la cámara. Para cerrar la aplicación, cierre la terminal.
+
+Si el ícono del escritorio no abre, haga clic derecho sobre él → **Permitir ejecutar**. Para desinstalar, ejecute `desinstalar.sh` de la misma forma. Estas instrucciones también vienen en el archivo `LEEME.txt` del paquete.
+
+> En el ejecutable, el servidor solo escucha en el propio equipo (`HOST=127.0.0.1`). La terminal muestra el tiempo de inferencia de cada cuadro, lo que sirve para comparar el rendimiento de la versión CPU y la GPU.
 
 ## Modelo
 
